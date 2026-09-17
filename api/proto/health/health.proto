@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package health.v1;
+
+option go_package = "./healthpb";
+
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+// HealthService exposes liveness and readiness probes via gRPC and REST.
+// These endpoints are used by Kubernetes, load balancers, and monitoring tools.
+service HealthService {
+  // Check returns the overall liveness status of the service.
+  // Kubernetes liveness probe: GET /healthz
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse) {
+    option (google.api.http) = {
+      get: "/healthz"
+      additional_bindings {
+        get: "/health"
+      }
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Liveness check";
+      description: "Returns 200 OK when the service is alive. Used by Kubernetes liveness probe.";
+      security: {}; // public — no bearer token required
+    };
+  }
+
+  // Ready returns the readiness status of the service.
+  // Kubernetes readiness probe: GET /readyz
+  rpc Ready(HealthCheckRequest) returns (HealthCheckResponse) {
+    option (google.api.http) = {
+      get: "/readyz"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Readiness check";
+      description: "Returns 200 OK when the service and its dependencies (database, etc.) are ready.";
+      security: {}; // public — no bearer token required
+    };
+  }
+}
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  // Status describes the serving state of the service.
+  enum Status {
+    STATUS_UNKNOWN       = 0;
+    STATUS_SERVING       = 1; // healthy
+    STATUS_NOT_SERVING   = 2; // unhealthy
+    STATUS_SERVICE_UNKNOWN = 3; // service name not registered
+  }
+
+  Status status  = 1;
+  string message = 2;
+}
