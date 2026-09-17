@@ -77,7 +77,8 @@ This project combines Clean Architecture and Hexagonal Architecture:
 ```text
 .
 ├── api/
-│   └── proto/             # Protocol Buffer definitions (.proto) per feature (auth, user, health)
+│   ├── external/          # External third-party proto contracts (client-only)
+│   └── proto/             # Inbound Service Proto definitions (.proto) per feature
 ├── bootstrap/             # Dependency Injection (Wire) & Server Bootstrapping
 │   ├── app.go             # Lifecycle & Server Runner (gRPC + HTTP)
 │   ├── gateway.go         # HTTP REST Gateway setup & Swagger UI
@@ -93,12 +94,14 @@ This project combines Clean Architecture and Hexagonal Architecture:
 │   └── docker-compose.yml
 ├── docs/                  # Detailed architectural documentation (architecture.md)
 ├── gen/                   # Code auto-generated from Proto & OpenAPI
-│   ├── openapi/           # Embedded OpenAPI JSON Spec
-│   └── pb/                # Generated Go Protocol Buffer code
+│   ├── externalpb/        # Generated External Client stubs (No Gateway, No Swagger)
+│   ├── openapi/           # Embedded OpenAPI JSON Spec (Inbound APIs only)
+│   └── pb/                # Generated Inbound Go PB code & gRPC Gateway
 ├── infrastructure/        # External drivers & framework implementations
 │   ├── cache/             # Redis Client
 │   ├── config/            # Viper Config Loader
 │   ├── database/          # GORM PostgreSQL & MongoDB connections
+│   ├── external/          # Outbound External Microservice Adapters (gRPC / HTTP clients)
 │   ├── middleware/        # gRPC Interceptors (Logging, Recovery, Auth)
 │   ├── swagger/           # Embedded Swagger UI handler
 │   └── telemetry/         # OpenTelemetry Tracer & Meter Providers

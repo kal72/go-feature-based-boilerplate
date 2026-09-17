@@ -10,14 +10,15 @@ import (
 // Config is the root configuration structure for the application.
 // All values are loaded from environment variables or configuration files.
 type Config struct {
-	App       AppConfig       `mapstructure:",squash"`
-	Server    ServerConfig    `mapstructure:",squash"`
-	Database  DatabaseConfig  `mapstructure:",squash"`
-	Mongo     MongoConfig     `mapstructure:",squash"`
-	Redis     RedisConfig     `mapstructure:",squash"`
-	JWT       JWTConfig       `mapstructure:",squash"`
-	Logger    LoggerConfig    `mapstructure:",squash"`
-	Telemetry TelemetryConfig `mapstructure:",squash"`
+	App           AppConfig           `mapstructure:",squash"`
+	Server        ServerConfig        `mapstructure:",squash"`
+	Database      DatabaseConfig      `mapstructure:",squash"`
+	Mongo         MongoConfig         `mapstructure:",squash"`
+	Redis         RedisConfig         `mapstructure:",squash"`
+	JWT           JWTConfig           `mapstructure:",squash"`
+	Logger        LoggerConfig        `mapstructure:",squash"`
+	Telemetry     TelemetryConfig     `mapstructure:",squash"`
+	CompanyClient CompanyClientConfig `mapstructure:",squash"`
 }
 
 // AppConfig holds general application metadata.
@@ -90,6 +91,12 @@ type TelemetryConfig struct {
 	Enabled      bool   `mapstructure:"OTEL_ENABLED"`
 }
 
+// CompanyClientConfig holds connection settings for the external Company gRPC service.
+type CompanyClientConfig struct {
+	GRPCAddr string        `mapstructure:"COMPANY_SERVICE_GRPC_ADDR"`
+	Timeout  time.Duration `mapstructure:"COMPANY_SERVICE_TIMEOUT"`
+}
+
 // Load reads configuration using Viper from environment variables and optional .env file.
 func Load() (*Config, error) {
 	v := viper.New()
@@ -113,6 +120,12 @@ func Load() (*Config, error) {
 	// Set safe defaults for timeout settings if not explicitly configured
 	if cfg.Server.DefaultTimeout <= 0 {
 		cfg.Server.DefaultTimeout = 15 * time.Second
+	}
+	if cfg.CompanyClient.Timeout <= 0 {
+		cfg.CompanyClient.Timeout = 5 * time.Second
+	}
+	if cfg.CompanyClient.GRPCAddr == "" {
+		cfg.CompanyClient.GRPCAddr = "localhost:50052"
 	}
 
 	return &cfg, nil

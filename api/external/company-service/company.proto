@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package company.v1;
+
+option go_package = "go-feature-based-boilerplate/gen/externalpb/company-service;companyservicepb";
+
+// CompanyService is an external third-party service contract.
+// We act purely as a client consuming this service.
+service CompanyService {
+  rpc GetCompany(GetCompanyRequest) returns (GetCompanyResponse);
+}
+
+message GetCompanyRequest {
+  string id = 1;
+}
+
+message GetCompanyResponse {
+  string id = 1;
+  string name = 2;
+  string address = 3;
+  string status = 4;
+}
