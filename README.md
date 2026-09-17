@@ -1,55 +1,55 @@
 # Go Feature-Based Modular Clean Architecture Boilerplate
 
-Standard production-ready microservice boilerplate untuk Go yang menerapkan **Feature-Based Modular Clean Architecture** dengan prinsip Hexagonal Architecture (Ports & Adapters) dan pendekatan Lightweight Domain-Driven Design (DDD).
+A standard, production-ready Go microservice boilerplate implementing **Feature-Based Modular Clean Architecture** with Hexagonal Architecture (Ports & Adapters) principles and a Lightweight Domain-Driven Design (DDD) approach.
 
-Boilerplate ini menyelaraskan pemisahan logika bisnis dari infrastruktur agar aplikasi tetap modular, mudah diuji (*testable*), dan independen terhadap teknologi eksternal.
-
----
-
-## 📋 Daftar Isi
-
-- [Fitur Utama](#-fitur-utama)
-- [Arsitektur & Prinsip Desain](#-arsitektur--prinsip-desain)
-- [Struktur Proyek](#-struktur-proyek)
-- [Prasyarat Sistem & Tooling](#-prasyarat-sistem--tooling)
-- [Daftar Dependensi (Libraries & Frameworks)](#-daftar-dependensi-libraries--frameworks)
-- [Panduan Memulai Cepat (Quick Start)](#-panduan-memulai-cepat-quick-start)
-- [Konfigurasi Environment (.env)](#-konfigurasi-environment-env)
-- [Manajemen Command (Makefile)](#-manajemen-command-makefile)
-- [Spesifikasi API & Endpoints](#-spesifikasi-api--endpoints)
-- [Generasi Kode (Code Generation)](#-generasi-kode-code-generation)
-- [Pengujian & Kualitas Kode](#-pengujian--kualitas-kode)
-- [Dokumentasi Tambahan](#-dokumentasi-tambahan)
+This boilerplate enforces strict separation of business logic from infrastructure, ensuring the application remains modular, highly testable, and independent of external technologies and frameworks.
 
 ---
 
-## ✨ Fitur Utama
+## 📋 Table of Contents
 
-- **Feature-First Architecture**: Kode bisnis dikelompokkan berdasarkan *domain feature* (contoh: `internal/auth`, `internal/user`, `internal/health`), bukan layer global monolithic.
+- [Key Features](#-key-features)
+- [Architecture & Design Principles](#-architecture--design-principles)
+- [Project Structure](#-project-structure)
+- [Prerequisites & Tooling](#-prerequisites--tooling)
+- [Dependencies (Libraries & Frameworks)](#-dependencies-libraries--frameworks)
+- [Quick Start](#-quick-start)
+- [Environment Configuration (.env)](#-environment-configuration-env)
+- [Makefile Commands](#-makefile-commands)
+- [API Specifications & Endpoints](#-api-specifications--endpoints)
+- [Code Generation](#-code-generation)
+- [Testing & Code Quality](#-testing--code-quality)
+- [Additional Documentation](#-additional-documentation)
+
+---
+
+## ✨ Key Features
+
+- **Feature-First Architecture**: Business logic is organized around domain features (e.g., `internal/auth`, `internal/user`, `internal/health`) rather than monolithic global layers.
 - **Dual Protocol Support**:
-  - **gRPC Server** berjalan pada port `:50051`.
-  - **HTTP REST Gateway** (menggunakan `grpc-gateway`) berjalan pada port `:8080`.
-- **Dependency Injection (Google Wire)**: Injeksi dependensi bertipe compile-time aman menggunakan Google Wire.
-- **Swagger / OpenAPI 2.0**: Swagger UI disajikan langsung secara native di endpoint `/swagger/`.
-- **Autentikasi & Keamanan**:
-  - JWT Access Token & Refresh Token lifecycle.
-  - Password hashing dengan `bcrypt`.
+  - **gRPC Server** running on port `:50051`.
+  - **HTTP REST Gateway** (powered by `grpc-gateway`) running on port `:8080`.
+- **Dependency Injection (Google Wire)**: Compile-time, type-safe dependency injection without runtime reflection.
+- **Swagger / OpenAPI 2.0**: Native Swagger UI embedded and served directly at `/swagger/`.
+- **Authentication & Security**:
+  - Complete JWT Access Token & Refresh Token lifecycle management.
+  - Secure one-way password hashing using `bcrypt`.
 - **Database & Caching**:
-  - **PostgreSQL**: Primary relational database via GORM dengan connection pooling and automated schema migrations (`golang-migrate`).
-  - **Modular Extensions (Redis & MongoDB)**: Client driver untuk Redis dan MongoDB telah tersedia di `infrastructure/cache/redis` dan `infrastructure/database/mongo`, siap dihubungkan ke `bootstrap/wire.go` bila fitur baru memerlukan caching profil atau document storage.
-- **Observability & Security**:
-  - Structured Logging (**Uber Zap**) terkorelasi dengan OpenTelemetry trace & span ID.
-  - Metrics Prometheus disajikan di `/metrics`.
-  - Token refresh hashing (SHA-256) & Token Reuse Compromise Detection (RFC 6819).
-  - CORS middleware aktif pada HTTP gateway.
-  - Graceful Shutdown untuk HTTP gateway dan gRPC server.
-- **Container Ready**: Dilengkapi Dockerfile multi-stage build dan `docker-compose.yml` untuk lingkungan pengembangan lokal.
+  - **PostgreSQL**: Primary relational database via GORM with connection pooling and automated schema migrations (`golang-migrate`).
+  - **Modular Extensions (Redis & MongoDB)**: Pre-configured driver clients for Redis and MongoDB in `infrastructure/cache/redis` and `infrastructure/database/mongo`, ready to be wired into `bootstrap/wire.go` when features require caching or document storage.
+- **Observability & Resilience**:
+  - Structured JSON Logging (**Uber Zap**) correlated with OpenTelemetry trace & span IDs.
+  - Prometheus metrics exposed via `/metrics`.
+  - Refresh token hashing (SHA-256) & Token Reuse Compromise Detection (RFC 6819).
+  - CORS middleware enabled on the HTTP gateway.
+  - Graceful shutdown for both the HTTP gateway and gRPC server.
+- **Container Ready**: Includes multi-stage build Dockerfile and `docker-compose.yml` for local development.
 
 ---
 
-## 🏛 Arsitektur & Prinsip Desain
+## 🏛 Architecture & Design Principles
 
-Aplikasi ini menggunakan perpaduan dari Clean Architecture & Hexagonal Architecture:
+This project combines Clean Architecture and Hexagonal Architecture:
 
 ```text
                HTTP (grpc-gateway) / gRPC
@@ -64,82 +64,82 @@ Aplikasi ini menggunakan perpaduan dari Clean Architecture & Hexagonal Architect
              Repository / Gateway Interface
                 │                  │
                 ▼                  ▼
-           Database          External Service
+            Database         External Service
 ```
 
-1. **Separation of Concerns**: Logika bisnis tidak bergantung pada framework HTTP, database GORM, Redis, atau gRPC. Semuanya terhubung via interface.
-2. **Feature First**: Setiap fitur di bawah `internal/` mengemas `dto`, `entity`, `errors`, `handler`, `repository`, `usecase`, dan `validator` masing-masing.
+1. **Separation of Concerns**: Core business logic does not depend on HTTP frameworks, GORM, Redis, or gRPC transport. All interactions are decoupled through interfaces.
+2. **Feature-First Organization**: Each feature directory under `internal/` packages its own `dto`, `entity`, `errors`, `handler`, `repository`, `usecase`, and `validator`.
 
 ---
 
-## 📂 Struktur Proyek
+## 📂 Project Structure
 
 ```text
 .
 ├── api/
-│   └── proto/             # Proto definitions (.proto) per fitur (auth, user, health)
-├── bootstrap/             # Dependency Injection Wire & Server Bootstrapping
+│   └── proto/             # Protocol Buffer definitions (.proto) per feature (auth, user, health)
+├── bootstrap/             # Dependency Injection (Wire) & Server Bootstrapping
 │   ├── app.go             # Lifecycle & Server Runner (gRPC + HTTP)
-│   ├── gateway.go         # Setup HTTP REST Gateway & Swagger UI
-│   ├── grpc.go            # Setup gRPC Server & Interceptors
+│   ├── gateway.go         # HTTP REST Gateway setup & Swagger UI
+│   ├── grpc.go            # gRPC Server setup & Interceptors
+│   ├── logger.go          # Logger DI Provider Adapter
 │   ├── wire.go            # Wire Injector Declaration
 │   └── wire_gen.go        # Generated Wire Code
 ├── cmd/
 │   └── api/
-│       └── main.go        # Entrypoint utama aplikasi
+│       └── main.go        # Application main entrypoint
 ├── deployments/           # Dockerfile & Docker Compose configuration
 │   ├── Dockerfile
 │   └── docker-compose.yml
-├── docs/                  # Dokumentasi arsitektur detail (architecture.md)
-├── gen/                   # Code yang digenerasi otomatis dari Proto & OpenAPI
+├── docs/                  # Detailed architectural documentation (architecture.md)
+├── gen/                   # Code auto-generated from Proto & OpenAPI
 │   ├── openapi/           # Embedded OpenAPI JSON Spec
 │   └── pb/                # Generated Go Protocol Buffer code
-├── infrastructure/        # Implementasi Driver & Framework
+├── infrastructure/        # External drivers & framework implementations
 │   ├── cache/             # Redis Client
 │   ├── config/            # Viper Config Loader
-│   ├── database/          # GORM PostgreSQL & MongoDB connection
-│   ├── logger/            # Zap Logger provider
+│   ├── database/          # GORM PostgreSQL & MongoDB connections
 │   ├── middleware/        # gRPC Interceptors (Logging, Recovery, Auth)
 │   ├── swagger/           # Embedded Swagger UI handler
 │   └── telemetry/         # OpenTelemetry Tracer & Meter Providers
-├── internal/              # Logika Bisnis (Domain Features)
-│   ├── auth/              # Fitur Autentikasi (Login, Refresh, Logout)
-│   ├── health/            # Probes Health Check (Liveness & Readiness)
-│   └── user/              # Fitur Management User (CRUD)
-├── migrations/            # Script Migrasi Database SQL
-├── pkg/                   # Helper & Utility Generic (crypto, pagination, validator, dll)
-└── scripts/               # Script utilitas (protogen.sh / protogen.bat)
+├── internal/              # Business Logic (Feature-First modular domains)
+│   ├── auth/              # Authentication Feature (Login, Refresh, Logout)
+│   ├── health/            # Health Check Probes (Liveness & Readiness)
+│   └── user/              # User Management Feature (CRUD)
+├── migrations/            # SQL database migration scripts
+├── pkg/                   # Generic helpers & utilities (logger, crypto, pagination, validator, etc.)
+└── scripts/               # Automation scripts (protogen.sh / protogen.bat)
 ```
 
 ---
 
-## 🛠 Prasyarat Sistem & Tooling
+## 🛠 Prerequisites & Tooling
 
-Sebelum menjalankan aplikasi, pastikan sistem Anda telah terpasang perangkat lunak berikut:
+Before running the application, make sure your system has the following software installed:
 
-### 1. Kebutuhan Sistem Utama
-- **Go**: `v1.25` atau lebih baru
+### 1. Core System Requirements
+- **Go**: `v1.25` or later
 - **Docker** & **Docker Compose**
-- **GNU Make** (utility untuk menjalankan target `Makefile`)
-- **protoc** (Protocol Buffers Compiler v3+) — *opsional, hanya jika ingin mengompilasi ulang file `.proto`*
+- **GNU Make** (utility to run `Makefile` targets)
+- **protoc** (Protocol Buffers Compiler v3+) — *optional, only required if modifying `.proto` files*
 
 ### 2. CLI Development Tools
-Untuk menjalankan seluruh target otomatisasi (`make migrate-*`, `make wire`, `make lint`, `make mocks`), pasang CLI tools berikut:
+To run all automation targets (`make migrate-*`, `make wire`, `make lint`, `make mocks`), install the following CLI tools:
 
 ```bash
-# 1. Database Migration Tool (golang-migrate dengan driver postgres)
+# 1. Database Migration Tool (golang-migrate with postgres driver)
 go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
 # 2. Dependency Injection Generator (Google Wire)
 go install github.com/google/wire/cmd/wire@latest
 
-# 3. Linter Standar Go
+# 3. Standard Go Linter
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-# 4. Mock Generator untuk Unit Test
+# 4. Mock Generator for Unit Tests
 go install go.uber.org/mock/mockgen@latest
 
-# 5. Protoc Plugins (Hanya jika mengubah skema .proto)
+# 5. Protoc Plugins (Only required when updating .proto schemas)
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
@@ -148,197 +148,198 @@ go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
 
 ---
 
-## 📦 Daftar Dependensi (Libraries & Frameworks)
+## 📦 Dependencies (Libraries & Frameworks)
 
-Boilerplate ini menggunakan dependensi pihak ketiga pilihan yang telah teruji kestabilan dan performanya di lingkungan produksi:
+This boilerplate utilizes battle-tested third-party dependencies chosen for performance and reliability in production:
 
-| Kategori | Package / Library | Versi | Peran & Kegunaan |
+| Category | Package / Library | Version | Role & Usage |
 | :--- | :--- | :--- | :--- |
-| **Transport & API** | `google.golang.org/grpc` | `v1.83.0` | Server & client framework RPC berperforma tinggi |
-| | `github.com/grpc-ecosystem/grpc-gateway/v2` | `v2.29.0` | Reverse-proxy otomatis gRPC ke HTTP RESTful JSON API |
-| | `google.golang.org/protobuf` | `v1.36.11` | Runtime encoder/decoder Protocol Buffers |
-| **Dependency Injection** | `github.com/google/wire` | `v0.7.0` | Compile-time dependency injection aman tanpa reflection runtime |
-| **Database & Persistence**| `gorm.io/gorm` | `v1.31.2` | Developer-friendly ORM untuk pemetaan database |
-| | `gorm.io/driver/postgres` | `v1.6.0` | Driver PostgreSQL berbasis `pgx/v5` connection pool |
-| | `go.mongodb.org/mongo-driver` | `v1.17.9` | Driver resmi MongoDB untuk penyimpanan dokumen NoSQL |
-| **Caching** | `github.com/redis/go-redis/v9` | `v9.21.0` | Client Redis untuk caching performa tinggi & rate-limiting |
-| **Konfigurasi** | `github.com/spf13/viper` | `v1.21.0` | Pembaca konfigurasi environment variables & file `.env` |
-| **Observability** | `go.uber.org/zap` | `v1.28.0` | Structured logger berkecepatan tinggi dengan alokasi memori minimal |
-| | `go.opentelemetry.io/otel` | `v1.45.0` | Standar telemetri terdistribusi (Distributed Tracing OTLP) |
-| | `go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc` | `v0.69.0` | Interceptor tracing otomatis untuk gRPC server |
-| | `github.com/prometheus/client_golang` | `v1.24.1` | Metrik Prometheus yang diekspos melalui endpoint `/metrics` |
-| **Keamanan & Auth** | `github.com/golang-jwt/jwt/v5` | `v5.3.1` | Penandatanganan & verifikasi JWT Access & Refresh Token (RFC 7519) |
-| | `golang.org/x/crypto/bcrypt` | `v0.54.0` | Algoritma hashing password searah dengan adaptive cost |
-| **Validasi Data** | `github.com/go-playground/validator/v10` | `v10.30.3` | Validasi struct request payload berbasis struct tag |
-| **Testing** | `github.com/stretchr/testify` | `v1.11.1` | Toolkit assertion dan mocking untuk pengujian unit |
+| **Transport & API** | `google.golang.org/grpc` | `v1.83.0` | High-performance RPC server & client framework |
+| | `github.com/grpc-ecosystem/grpc-gateway/v2` | `v2.29.0` | Reverse-proxy mapping gRPC services to HTTP RESTful JSON APIs |
+| | `google.golang.org/protobuf` | `v1.36.11` | Protocol Buffers runtime encoder/decoder |
+| **Dependency Injection** | `github.com/google/wire` | `v0.7.0` | Compile-time dependency injection without runtime reflection |
+| **Database & Persistence** | `gorm.io/gorm` | `v1.31.2` | Developer-friendly ORM for database mapping |
+| | `gorm.io/driver/postgres` | `v1.6.0` | PostgreSQL driver utilizing `pgx/v5` connection pooling |
+| | `go.mongodb.org/mongo-driver` | `v1.17.9` | Official MongoDB driver for NoSQL document storage |
+| **Caching** | `github.com/redis/go-redis/v9` | `v9.21.0` | High-performance Redis client for caching and rate-limiting |
+| **Configuration** | `github.com/spf13/viper` | `v1.21.0` | Environment variables and `.env` configuration loader |
+| **Observability** | `go.uber.org/zap` | `v1.28.0` | High-throughput structured logger with minimal memory allocations |
+| | `go.opentelemetry.io/otel` | `v1.45.0` | Distributed telemetry standard (Distributed Tracing via OTLP) |
+| | `go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc` | `v0.69.0` | Automated tracing interceptor for gRPC server |
+| | `github.com/prometheus/client_golang` | `v1.24.1` | Prometheus metrics client exposed via `/metrics` |
+| **Security & Auth** | `github.com/golang-jwt/jwt/v5` | `v5.3.1` | JWT Access & Refresh Token signing and verification (RFC 7519) |
+| | `golang.org/x/crypto/bcrypt` | `v0.54.0` | One-way password hashing algorithm with adaptive work factor |
+| **Data Validation** | `github.com/go-playground/validator/v10` | `v10.30.3` | Struct tag-based request payload validation |
+| **Testing** | `github.com/stretchr/testify` | `v1.11.1` | Assertion toolkit and mocking suite for unit tests |
 
 ---
 
-## 🚀 Panduan Memulai Cepat (Quick Start)
+## 🚀 Quick Start
 
 ### 1. Clone & Setup Environment
 
-Salin file konfigurasi environment sampel ke `.env`:
+Copy the example environment configuration file to `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-### 2. Jalankan Infrastruktur Lokal (Database, Redis, Jaeger)
+### 2. Start Local Infrastructure (Database, Redis, Jaeger)
 
-Gunakan Docker Compose untuk menjalankan PostgreSQL, MongoDB, Redis, OTel Collector, dan Jaeger:
+Use Docker Compose to launch PostgreSQL, MongoDB, Redis, OTel Collector, and Jaeger:
 
 ```bash
 make docker-up
 ```
 
-### 3. Jalankan Migrasi Database
+### 3. Run Database Migrations
 
-Aplikasikan migrasi tabel awal ke PostgreSQL:
+Apply database table migrations to PostgreSQL:
 
 ```bash
 make migrate-up
 ```
 
-### 4. Jalankan Aplikasi
+### 4. Run the Application
 
-Jalankan aplikasi dalam mode lokal:
+Start the service locally:
 
 ```bash
 make run
 ```
 
-Aplikasi akan berjalan dan mendengarkan port berikut:
+The application will listen on the following ports:
 - **gRPC Server**: `localhost:50051`
 - **HTTP Gateway**: `http://localhost:8080`
 - **Swagger UI**: `http://localhost:8080/swagger/`
 
 ---
 
-## ⚙️ Konfigurasi Environment (.env)
+## ⚙️ Environment Configuration (.env)
 
-Konfigurasi utama dimuat dari variabel lingkungan atau file `.env`:
+Core settings are loaded from environment variables or the `.env` file:
 
-| Variabel | Default | Deskripsi |
+| Variable | Default | Description |
 | --- | --- | --- |
-| `APP_NAME` | `go-feature-based-boilerplate` | Nama aplikasi |
+| `APP_NAME` | `go-feature-based-boilerplate` | Application name |
 | `APP_ENV` | `development` | Environment (`development`, `production`, `test`) |
-| `SERVER_GRPC_PORT` | `50051` | Port untuk gRPC Server |
-| `SERVER_HTTP_PORT` | `8080` | Port untuk HTTP REST Gateway |
-| `DB_HOST` | `localhost` | Host PostgreSQL |
-| `DB_PORT` | `5432` | Port PostgreSQL |
-| `DB_NAME` | `appdb` | Nama database PostgreSQL |
-| `DB_USER` | `appuser` | Username PostgreSQL |
-| `DB_PASSWORD` | `apppassword` | Password PostgreSQL |
-| `REDIS_ADDR` | `localhost:6379` | Alamat Redis Server |
-| `MONGO_URI` | `mongodb://localhost:27017` | URI Koneksi MongoDB |
-| `JWT_SECRET_KEY` | `change-me-...` | Secret Key penandatanganan JWT Token |
-| `JWT_ACCESS_TOKEN_TTL`| `15m` | Masa berlaku Access Token |
-| `JWT_REFRESH_TOKEN_TTL`| `720h` | Masa berlaku Refresh Token |
-| `LOG_LEVEL` | `debug` | Level log (`debug`, `info`, `warn`, `error`) |
-| `OTEL_ENABLED` | `false` | Mengaktifkan ekspor OpenTelemetry |
+| `SERVER_GRPC_PORT` | `50051` | Port for the gRPC Server |
+| `SERVER_HTTP_PORT` | `8080` | Port for the HTTP REST Gateway |
+| `DB_HOST` | `localhost` | PostgreSQL host |
+| `DB_PORT` | `5432` | PostgreSQL port |
+| `DB_NAME` | `appdb` | PostgreSQL database name |
+| `DB_USER` | `appuser` | PostgreSQL username |
+| `DB_PASSWORD` | `apppassword` | PostgreSQL password |
+| `REDIS_ADDR` | `localhost:6379` | Redis Server address |
+| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB connection URI |
+| `JWT_SECRET_KEY` | `change-me-...` | Secret key for JWT token signing |
+| `JWT_ACCESS_TOKEN_TTL`| `15m` | Access token lifespan |
+| `JWT_REFRESH_TOKEN_TTL`| `720h` | Refresh token lifespan |
+| `LOG_LEVEL` | `debug` | Log level (`debug`, `info`, `warn`, `error`) |
+| `OTEL_ENABLED` | `false` | Enable OpenTelemetry trace exporting |
 
 ---
 
-## 🛠 Manajemen Command (Makefile)
+## 🛠 Makefile Commands
 
-Proyek ini menyediakan berbagai perintah pembantu melalui `Makefile`:
+This repository includes a comprehensive set of automated developer commands:
 
 ### Build & Run
-- `make run` — Menjalankan aplikasi secara langsung (`go run ./cmd/api`)
-- `make build` — Mengompilasi binary ke `bin/server`
+- `make run` — Run application directly (`go run ./cmd/api`)
+- `make build` — Compile production binary to `bin/server`
 
-### Generasi Kode & DI
-- `make protogen` — Menggenerasi kode Go pb & OpenAPI dari file `.proto`
-- `make wire` — Menggenerasi file `bootstrap/wire_gen.go` menggunakan Google Wire
-- `make mocks` — Menggenerasi mock untuk unit testing (`go generate ./internal/...`)
+### Code Generation & DI
+- `make protogen` — Generate Go protocol buffer code and OpenAPI JSON from `.proto` files
+- `make wire` — Generate `bootstrap/wire_gen.go` using Google Wire
+- `make mocks` — Generate mocks for unit testing (`go generate ./internal/...`)
 
-### Database & Migrasi
-- `make migrate-up` — Memunculkan seluruh migrasi SQL yang pending
-- `make migrate-down` — Mengembalikan (*rollback*) 1 langkah migrasi
-- `make migrate-status` — Memeriksa versi migrasi saat ini
-- `make migration name=<desc>` — Membuat file migrasi SQL baru
+### Database & Migrations
+- `make migrate-up` — Apply all pending SQL migrations
+- `make migrate-down` — Roll back 1 migration step
+- `make migrate-status` — Check current database migration version
+- `make migration name=<desc>` — Create a new SQL migration file pair
 
 ### Testing & Quality
-- `make test` — Menjalankan unit test (`./internal/...` `./pkg/...`)
-- `make test-cover` — Menjalankan unit test dengan laporan *coverage* HTML (`coverage.html`)
-- `make lint` — Menjalankan `golangci-lint`
-- `make fmt` — Format kode Go (`gofmt` & `goimports`)
+- `make test` — Run all unit tests (`./internal/...` `./pkg/...`)
+- `make test-cover` — Run unit tests and generate HTML coverage report (`coverage.html`)
+- `make lint` — Run `golangci-lint`
+- `make fmt` — Format Go source files (`gofmt` & `goimports`)
 
 ### Docker Operations
-- `make docker-up` — Menyalakan seluruh service infra via docker-compose
-- `make docker-down` — Mematikan seluruh service infra
-- `make docker-logs` — Melihat log aplikasi dari docker-compose
+- `make docker-up` — Start all infrastructure services via docker-compose
+- `make docker-down` — Stop and tear down infrastructure containers
+- `make docker-logs` — Stream container logs from docker-compose
 
 ---
 
-## 📡 Spesifikasi API & Endpoints
+## 📡 API Specifications & Endpoints
 
 ### 🟢 Probes & Metrics (Public)
-| Method | Endpoint | Deskripsi |
+| Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/healthz` | Kubernetes Liveness Probe (Standar De-facto) |
+| `GET` | `/healthz` | Kubernetes Liveness Probe (De-facto Standard) |
 | `GET` | `/health` | Alternative Liveness Probe |
-| `GET` | `/readyz` | Kubernetes Readiness Probe (Returns 503 jika dependensi down) |
+| `GET` | `/readyz` | Kubernetes Readiness Probe (Returns 503 if downstream dependencies fail) |
 | `GET` | `/metrics` | Prometheus Metrics Endpoint |
 
 ### 🔐 Authentication (`/api/v1/auth`)
-| Method | Endpoint | Deskripsi | Auth |
+| Method | Endpoint | Description | Auth |
 | --- | --- | --- | --- |
-| `POST` | `/api/v1/auth/login` | Login user & dapatkan sepasang token JWT | Public |
-| `POST` | `/api/v1/auth/refresh` | Perbarui Access Token menggunakan Refresh Token | Public |
+| `POST` | `/api/v1/auth/login` | Authenticate user & issue JWT token pair | Public |
+| `POST` | `/api/v1/auth/refresh` | Renew Access Token using Refresh Token | Public |
 | `POST` | `/api/v1/auth/logout` | Revoke Refresh Token & Logout | Public |
 
 ### 👤 User Management (`/api/v1/users`)
-| Method | Endpoint | Deskripsi | Auth |
+| Method | Endpoint | Description | Auth |
 | --- | --- | --- | --- |
-| `POST` | `/api/v1/users` | Membuat user baru (Registrasi) | Public |
-| `GET` | `/api/v1/users/{id}` | Mengambil detail user berdasarkan ID | Bearer JWT |
-| `PATCH` | `/api/v1/users/{id}` | Memperbarui data user | Bearer JWT |
-| `DELETE` | `/api/v1/users/{id}` | Menghapus user | Bearer JWT |
+| `POST` | `/api/v1/users` | Register a new user | Public |
+| `GET` | `/api/v1/users/{id}` | Retrieve user profile by ID | Bearer JWT |
+| `PATCH` | `/api/v1/users/{id}` | Update user profile data | Bearer JWT |
+| `DELETE` | `/api/v1/users/{id}` | Soft/hard delete user | Bearer JWT |
 
 ### 📄 Documentation & UI
-- **Swagger UI**: Akses melalui peramban di `http://localhost:8080/swagger/`
+- **Swagger UI**: Access interactively in the browser at `http://localhost:8080/swagger/`
 
 ---
 
-## 🔄 Generasi Kode (Code Generation)
+## 🔄 Code Generation
 
 ### 1. Protobuf & OpenAPI
-Jika Anda mengubah atau menambahkan skema baru di `api/proto/`:
+When you update or add new `.proto` schemas in `api/proto/`:
 ```bash
 make protogen
 ```
-*Script `scripts/protogen.sh` (atau `protogen.bat` di Windows) akan secara otomatis menghasilkan struct Go protocol buffer di `gen/pb/` dan file OpenAPI JSON di `gen/openapi/`.*
+*The script `scripts/protogen.sh` (or `protogen.bat` on Windows) automatically generates the Go protocol buffer structs in `gen/pb/` and OpenAPI JSON specs in `gen/openapi/`.*
 
 ### 2. Dependency Injection (Wire)
-Jika Anda menambah provider baru di `bootstrap/wire.go` atau constructor pada layer `internal/`:
+When you add new providers in `bootstrap/wire.go` or constructors in `internal/`:
 ```bash
 make wire
 ```
 
 ---
 
-## 🧪 Pengujian & Kualitas Kode
+## 🧪 Testing & Code Quality
 
-Menjalankan pengujian unit:
+Run unit tests:
 ```bash
 make test
 ```
 
-Menghasilkan laporan *code coverage*:
+Generate a test coverage report:
 ```bash
 make test-cover
 ```
 
-Menjalankan linter untuk menjaga kualitas standar kode:
+Run linter to enforce code standards:
 ```bash
 make lint
 ```
 
 ---
 
-## 📚 Dokumentasi Tambahan
+## 📚 Additional Documentation
 
-Untuk penjelasan teknis yang mendalam mengenai keputusan desain arsitektur, panduan *clean architecture*, urutan registrasi handler, dan pola penanganan error, silakan merujuk ke:
-- [docs/architecture.md](file:///Users/a2375/Projects/go-feature-based-boilerplate/docs/architecture.md)
+For an in-depth technical explanation of architectural decisions, Clean Architecture rules, handler registration order, and error handling patterns, refer to:
+- [docs/architecture.md](docs/architecture.md) (English Documentation)
+- [docs/architecture.id.md](docs/architecture.id.md) (Dokumentasi Bahasa Indonesia)
