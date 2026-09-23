@@ -221,7 +221,8 @@ func TestNewHTTPGateway_TelemetryAndPprof(t *testing.T) {
 		},
 	}
 
-	srv, err := NewHTTPGateway(context.Background(), cfg)
+	svcs := NewServices()
+	srv, err := NewHTTPGateway(context.Background(), cfg, svcs)
 	require.NoError(t, err)
 	require.NotNil(t, srv)
 	require.NotNil(t, srv.Handler)
@@ -250,7 +251,7 @@ func TestNewHTTPGateway_TelemetryAndPprof(t *testing.T) {
 		},
 	}
 
-	srvProd, err := NewHTTPGateway(context.Background(), cfgProd)
+	srvProd, err := NewHTTPGateway(context.Background(), cfgProd, svcs)
 	require.NoError(t, err)
 	require.NotNil(t, srvProd)
 

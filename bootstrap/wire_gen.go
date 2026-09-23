@@ -8,6 +8,7 @@ package bootstrap
 
 import (
 	"context"
+	"github.com/google/wire"
 	"go-feature-based-boilerplate/infrastructure/config"
 	"go-feature-based-boilerplate/infrastructure/database/postgres"
 	"go-feature-based-boilerplate/infrastructure/telemetry"
@@ -33,7 +34,7 @@ func InitializeApp(ctx context.Context) (*App, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	zapLogger, err := ProvideLogger(configConfig)
+	logger, err := ProvideLogger(configConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -53,13 +54,15 @@ func InitializeApp(ctx context.Context) (*App, func(), error) {
 	validator3 := validator2.New()
 	tokenConfig := usecase2.NewTokenConfig(configConfig)
 	loginUsecase := usecase2.NewLoginUsecase(authRepository, userProvider, validator3, tokenConfig)
-	refreshUsecase := usecase2.NewRefreshUsecase(authRepository, userProvider, validator3, tokenConfig)
+	transactionManager := postgres.NewTransactionManager(db)
+	refreshUsecase := usecase2.NewRefreshUsecase(authRepository, userProvider, validator3, transactionManager, tokenConfig)
 	logoutUsecase := usecase2.NewLogoutUsecase(authRepository, validator3)
 	handler4 := handler2.NewHandler(loginUsecase, refreshUsecase, logoutUsecase)
 	dbPinger := checker.NewDBPinger(db)
 	handler5 := handler3.NewHandler(dbPinger)
-	server := NewGRPCServer(configConfig, zapLogger, handlerHandler, handler4, handler5)
-	httpServer, err := NewHTTPGateway(ctx, configConfig)
+	services := ProvideServices(handlerHandler, handler4, handler5)
+	server := NewGRPCServer(configConfig, logger, services)
+	httpServer, err := NewHTTPGateway(ctx, configConfig, services)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -71,7 +74,17 @@ func InitializeApp(ctx context.Context) (*App, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	app := NewApp(configConfig, zapLogger, db, server, httpServer, tracerProvider, meterProvider)
+	app := NewApp(configConfig, logger, db, server, httpServer, tracerProvider, meterProvider)
 	return app, func() {
 	}, nil
 }
+
+// wire.go:
+
+// serverSet wires bootstrap servers and application lifecycle container.
+var serverSet = wire.NewSet(
+	ProvideServices,
+	NewGRPCServer,
+	NewHTTPGateway,
+	NewApp,
+)

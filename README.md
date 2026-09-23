@@ -179,7 +179,17 @@ This boilerplate utilizes battle-tested third-party dependencies chosen for perf
 
 ## 🚀 Quick Start
 
-### 1. Clone & Setup Environment
+### 0. Rename Module (For New Projects)
+
+If you clone this boilerplate to start a new microservice, rename the Go module and all internal import paths:
+
+```bash
+make rename module=github.com/your-org/your-service
+# or interactively:
+./scripts/rename-module.sh
+```
+
+### 1. Setup Environment
 
 Copy the example environment configuration file to `.env`:
 
@@ -272,6 +282,10 @@ This repository includes a comprehensive set of automated developer commands:
 - `make docker-up` — Start all infrastructure services via docker-compose
 - `make docker-down` — Stop and tear down infrastructure containers
 - `make docker-logs` — Stream container logs from docker-compose
+
+### Scaffolding & Project Setup
+- `make rename module=<module>` — Rename Go module and all imports across the codebase
+- `make new-feature name=<feature>` — Scaffold a new Feature-First modular domain directory
 
 ---
 

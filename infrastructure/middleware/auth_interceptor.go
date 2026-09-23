@@ -26,6 +26,7 @@ const (
 var publicMethods = map[string]bool{
 	"/auth.v1.AuthService/Login":      true,
 	"/auth.v1.AuthService/Refresh":    true,
+	"/auth.v1.AuthService/Logout":     true,
 	"/user.v1.UserService/CreateUser": true,
 	"/health.v1.HealthService/Check":  true,
 	"/health.v1.HealthService/Ready":  true,

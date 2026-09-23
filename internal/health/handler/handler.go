@@ -6,6 +6,8 @@ import (
 	pb "go-feature-based-boilerplate/gen/pb/health"
 	"go-feature-based-boilerplate/internal/health/checker"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -44,4 +46,14 @@ func (h *Handler) Ready(ctx context.Context, _ *pb.HealthCheckRequest) (*pb.Heal
 		Status:  pb.HealthCheckResponse_STATUS_SERVING,
 		Message: "ok",
 	}, nil
+}
+
+// RegisterGRPC registers the health service onto the provided gRPC server.
+func (h *Handler) RegisterGRPC(server *grpc.Server) {
+	pb.RegisterHealthServiceServer(server, h)
+}
+
+// RegisterGateway registers the health service HTTP endpoints onto the gRPC-Gateway mux.
+func (h *Handler) RegisterGateway(ctx context.Context, mux *runtime.ServeMux, grpcAddr string, opts []grpc.DialOption) error {
+	return pb.RegisterHealthServiceHandlerFromEndpoint(ctx, mux, grpcAddr, opts)
 }

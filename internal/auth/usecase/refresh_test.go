@@ -17,11 +17,18 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+type mockTxManager struct{}
+
+func (m *mockTxManager) RunInTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
+	return fn(ctx)
+}
+
 func TestRefreshUsecase_Success(t *testing.T) {
 	authRepo := new(mockAuthRepository)
 	userProv := new(mockUserProvider)
 	v := validator.New()
-	uc := usecase.NewRefreshUsecase(authRepo, userProv, v, testTokenConfig())
+	txMgr := new(mockTxManager)
+	uc := usecase.NewRefreshUsecase(authRepo, userProv, v, txMgr, testTokenConfig())
 
 	rawToken := "valid-refresh-token-value-12345"
 	tokenHash := cryptoutil.HashSHA256(rawToken)
@@ -63,7 +70,8 @@ func TestRefreshUsecase_CompromiseDetection(t *testing.T) {
 	authRepo := new(mockAuthRepository)
 	userProv := new(mockUserProvider)
 	v := validator.New()
-	uc := usecase.NewRefreshUsecase(authRepo, userProv, v, testTokenConfig())
+	txMgr := new(mockTxManager)
+	uc := usecase.NewRefreshUsecase(authRepo, userProv, v, txMgr, testTokenConfig())
 
 	rawToken := "already-revoked-stolen-token"
 	tokenHash := cryptoutil.HashSHA256(rawToken)
@@ -93,7 +101,8 @@ func TestRefreshUsecase_TokenExpired(t *testing.T) {
 	authRepo := new(mockAuthRepository)
 	userProv := new(mockUserProvider)
 	v := validator.New()
-	uc := usecase.NewRefreshUsecase(authRepo, userProv, v, testTokenConfig())
+	txMgr := new(mockTxManager)
+	uc := usecase.NewRefreshUsecase(authRepo, userProv, v, txMgr, testTokenConfig())
 
 	rawToken := "expired-token-12345"
 	tokenHash := cryptoutil.HashSHA256(rawToken)
@@ -121,7 +130,8 @@ func TestRefreshUsecase_TokenNotFound(t *testing.T) {
 	authRepo := new(mockAuthRepository)
 	userProv := new(mockUserProvider)
 	v := validator.New()
-	uc := usecase.NewRefreshUsecase(authRepo, userProv, v, testTokenConfig())
+	txMgr := new(mockTxManager)
+	uc := usecase.NewRefreshUsecase(authRepo, userProv, v, txMgr, testTokenConfig())
 
 	rawToken := "unknown-token"
 	tokenHash := cryptoutil.HashSHA256(rawToken)

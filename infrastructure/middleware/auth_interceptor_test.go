@@ -38,6 +38,25 @@ func TestAuthInterceptor_PublicMethod(t *testing.T) {
 	assert.True(t, called)
 }
 
+func TestAuthInterceptor_LogoutPublicMethod(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.JWT.SecretKey = "test-secret"
+	interceptor := middleware.AuthInterceptor(cfg)
+
+	called := false
+	handler := func(ctx context.Context, req any) (any, error) {
+		called = true
+		return "ok", nil
+	}
+
+	info := &grpc.UnaryServerInfo{FullMethod: "/auth.v1.AuthService/Logout"}
+	resp, err := interceptor(context.Background(), nil, info, handler)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "ok", resp)
+	assert.True(t, called)
+}
+
 func TestAuthInterceptor_MissingMetadata(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.JWT.SecretKey = "test-secret"

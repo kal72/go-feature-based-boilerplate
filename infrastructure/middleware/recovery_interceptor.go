@@ -4,15 +4,16 @@ import (
 	"context"
 	"runtime/debug"
 
-	"go.uber.org/zap"
+	"go-feature-based-boilerplate/pkg/logger"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// RecoveryInterceptor catches panics in gRPC handlers, logs them, and converts
-// them to an Internal gRPC status so the server stays alive.
-func RecoveryInterceptor(logger *zap.Logger) grpc.UnaryServerInterceptor {
+// RecoveryInterceptor catches panics in gRPC handlers, logs them using the unified logger,
+// and converts them to an Internal gRPC status so the server stays alive.
+func RecoveryInterceptor(log logger.Logger) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
 		req any,
@@ -21,11 +22,11 @@ func RecoveryInterceptor(logger *zap.Logger) grpc.UnaryServerInterceptor {
 	) (resp any, err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error("panic recovered",
-					zap.String("method", info.FullMethod),
-					zap.Any("panic", r),
-					zap.String("stack", string(debug.Stack())),
-				)
+				log.
+					With("method", info.FullMethod).
+					With("panic", r).
+					With("stack", string(debug.Stack())).
+					Error(ctx, "panic recovered")
 				err = status.Errorf(codes.Internal, "internal server error")
 			}
 		}()

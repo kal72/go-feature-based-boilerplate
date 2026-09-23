@@ -23,9 +23,9 @@ import (
 
 func TestLoggingInterceptor_Success(t *testing.T) {
 	core, logs := observer.New(zapcore.InfoLevel)
-	logger := zap.New(core)
+	log := logger.NewWithZap(zap.New(core), "test-service", "test")
 
-	interceptor := middleware.LoggingInterceptor(logger)
+	interceptor := middleware.LoggingInterceptor(log)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.v1.UserService/GetUser"}
 
 	req := &userpb.GetUserRequest{Id: 10}
@@ -52,9 +52,9 @@ func TestLoggingInterceptor_Success(t *testing.T) {
 
 func TestLoggingInterceptor_ClientError(t *testing.T) {
 	core, logs := observer.New(zapcore.InfoLevel)
-	logger := zap.New(core)
+	log := logger.NewWithZap(zap.New(core), "test-service", "test")
 
-	interceptor := middleware.LoggingInterceptor(logger)
+	interceptor := middleware.LoggingInterceptor(log)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.v1.UserService/CreateUser"}
 
 	_, err := interceptor(context.Background(), nil, info, func(ctx context.Context, req any) (any, error) {
@@ -75,9 +75,9 @@ func TestLoggingInterceptor_ClientError(t *testing.T) {
 
 func TestLoggingInterceptor_ServerError(t *testing.T) {
 	core, logs := observer.New(zapcore.InfoLevel)
-	logger := zap.New(core)
+	log := logger.NewWithZap(zap.New(core), "test-service", "test")
 
-	interceptor := middleware.LoggingInterceptor(logger)
+	interceptor := middleware.LoggingInterceptor(log)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.v1.UserService/GetUser"}
 
 	_, err := interceptor(context.Background(), nil, info, func(ctx context.Context, req any) (any, error) {
@@ -98,9 +98,9 @@ func TestLoggingInterceptor_ServerError(t *testing.T) {
 
 func TestLoggingInterceptor_PayloadMasking(t *testing.T) {
 	core, logs := observer.New(zapcore.InfoLevel)
-	logger := zap.New(core)
+	log := logger.NewWithZap(zap.New(core), "test-service", "test")
 
-	interceptor := middleware.LoggingInterceptor(logger)
+	interceptor := middleware.LoggingInterceptor(log)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.v1.UserService/CreateUser"}
 
 	req := &userpb.CreateUserRequest{
@@ -129,9 +129,9 @@ func TestLoggingInterceptor_PayloadMasking(t *testing.T) {
 
 func TestLoggingInterceptor_ResponseLoggedOnError(t *testing.T) {
 	core, logs := observer.New(zapcore.InfoLevel)
-	logger := zap.New(core)
+	log := logger.NewWithZap(zap.New(core), "test-service", "test")
 
-	interceptor := middleware.LoggingInterceptor(logger)
+	interceptor := middleware.LoggingInterceptor(log)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.v1.UserService/CreateUser"}
 
 	respPayload := map[string]any{
@@ -157,9 +157,9 @@ func TestLoggingInterceptor_ResponseLoggedOnError(t *testing.T) {
 
 func TestLoggingInterceptor_ContextEnrichment(t *testing.T) {
 	core, logs := observer.New(zapcore.InfoLevel)
-	zapLogger := zap.New(core)
+	log := logger.NewWithZap(zap.New(core), "test-service", "test")
 
-	interceptor := middleware.LoggingInterceptor(zapLogger)
+	interceptor := middleware.LoggingInterceptor(log)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.v1.UserService/GetUser"}
 
 	md := metadata.Pairs("x-request-id", "req-corr-777", "user-agent", "grpc-client/v2.1")
@@ -200,9 +200,9 @@ func TestLoggingInterceptor_ContextEnrichment(t *testing.T) {
 
 func TestLoggingInterceptor_PeerIP_And_RequestID(t *testing.T) {
 	core, logs := observer.New(zapcore.InfoLevel)
-	logger := zap.New(core)
+	log := logger.NewWithZap(zap.New(core), "test-service", "test")
 
-	interceptor := middleware.LoggingInterceptor(logger)
+	interceptor := middleware.LoggingInterceptor(log)
 	info := &grpc.UnaryServerInfo{FullMethod: "/user.v1.UserService/GetUser"}
 
 	// Attach peer IP

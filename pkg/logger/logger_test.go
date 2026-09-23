@@ -86,8 +86,12 @@ func TestZapLogger_LevelsAndError(t *testing.T) {
 	testErr := errors.New("database timeout")
 	log.Error(ctx, "operation failed", testErr)
 
+	// Multi-error check
+	secondErr := errors.New("connection reset")
+	log.Error(ctx, "multiple failures", testErr, secondErr)
+
 	entries := recorded.All()
-	require.Len(t, entries, 3)
+	require.Len(t, entries, 4)
 
 	assert.Equal(t, zapcore.DebugLevel, entries[0].Level)
 	assert.Equal(t, "debug msg", entries[0].Message)
@@ -99,9 +103,34 @@ func TestZapLogger_LevelsAndError(t *testing.T) {
 	assert.Equal(t, "operation failed", entries[2].Message)
 	fields := entries[2].ContextMap()
 	assert.Equal(t, "database timeout", fields["error"])
+
+	// Validate multiple errors
+	multiFields := entries[3].ContextMap()
+	assert.Equal(t, "database timeout", multiFields["error"])
+	assert.NotNil(t, multiFields["extra_errors"])
 }
 
-func TestZapLogger_WithAndWithData(t *testing.T) {
+func TestZapLogger_FastPathLevelCheck(t *testing.T) {
+	// Logger configured at WarnLevel
+	core, recorded := observer.New(zapcore.WarnLevel)
+	baseZap := zap.New(core)
+	log := logger.NewZapLogger(baseZap, "test-svc", "production")
+
+	ctx := context.Background()
+
+	// Debug and Info should be bypassed via fast-path check
+	log.Debug(ctx, "debug ignored")
+	log.Info(ctx, "info ignored")
+
+	assert.Equal(t, 0, recorded.Len())
+
+	// Warn should be recorded
+	log.Warn(ctx, "warning triggered")
+	assert.Equal(t, 1, recorded.Len())
+	assert.Equal(t, "warning triggered", recorded.All()[0].Message)
+}
+
+func TestZapLogger_WithAndWithDataAndWithFields(t *testing.T) {
 	core, recorded := observer.New(zapcore.InfoLevel)
 	baseZap := zap.New(core)
 	log := logger.NewZapLogger(baseZap, "test-svc", "test")
@@ -113,7 +142,14 @@ func TestZapLogger_WithAndWithData(t *testing.T) {
 
 	payload := OrderPayload{ID: "ord-99", Amount: 150000}
 
-	subLog := log.With("custom_key", "custom_val").WithData(payload)
+	subLog := log.
+		With("custom_key", "custom_val").
+		WithFields(map[string]any{
+			"batch_id": "b-100",
+			"priority": "high",
+		}).
+		WithData(payload)
+
 	subLog.Info(context.Background(), "processing transaction")
 
 	entries := recorded.All()
@@ -121,11 +157,12 @@ func TestZapLogger_WithAndWithData(t *testing.T) {
 
 	fields := entries[0].ContextMap()
 	assert.Equal(t, "custom_val", fields["custom_key"])
+	assert.Equal(t, "b-100", fields["batch_id"])
+	assert.Equal(t, "high", fields["priority"])
 
 	// Validate data payload
 	dataMap, ok := fields["data"].(map[string]any)
 	if !ok {
-		// Could be serialized struct
 		dataJSON, err := json.Marshal(fields["data"])
 		require.NoError(t, err)
 		var unmarshaled map[string]any
@@ -134,6 +171,27 @@ func TestZapLogger_WithAndWithData(t *testing.T) {
 	}
 	assert.Equal(t, "ord-99", dataMap["id"])
 	assert.Equal(t, float64(150000), dataMap["amount"])
+}
+
+func TestZapLogger_NamedAndSyncAndDesugar(t *testing.T) {
+	core, recorded := observer.New(zapcore.InfoLevel)
+	baseZap := zap.New(core)
+	log := logger.NewZapLogger(baseZap, "test-svc", "test")
+
+	namedLog := log.Named("subsystem")
+	namedLog.Info(context.Background(), "named logger message")
+
+	entries := recorded.All()
+	require.Len(t, entries, 1)
+	assert.Equal(t, "subsystem", entries[0].LoggerName)
+
+	// Sync should not panic or fail
+	require.NoError(t, log.Sync())
+
+	// Desugar returns underlying *zap.Logger
+	if zl, ok := log.(interface{ Desugar() *zap.Logger }); ok {
+		assert.NotNil(t, zl.Desugar())
+	}
 }
 
 func TestZapLogger_MetadataAndPeerFallback(t *testing.T) {
@@ -159,38 +217,85 @@ func TestZapLogger_MetadataAndPeerFallback(t *testing.T) {
 	assert.Equal(t, "grpc-md-req-456", fields["request_id"])
 }
 
-func TestFactory_NewZapAndNew(t *testing.T) {
+func TestLogger_New(t *testing.T) {
 	// Development config
-	devZap, err := logger.NewZap(logger.Config{
+	devLog, err := logger.New(logger.Config{
 		Level:       "debug",
 		Environment: "development",
+		ServiceName: "dev-service",
 	})
 	require.NoError(t, err)
-	assert.NotNil(t, devZap)
+	assert.NotNil(t, devLog)
 
 	// Production config
-	prodZap, err := logger.NewZap(logger.Config{
+	prodLog, err := logger.New(logger.Config{
 		Level:       "info",
 		Environment: "production",
+		ServiceName: "prod-service",
 	})
 	require.NoError(t, err)
-	assert.NotNil(t, prodZap)
+	assert.NotNil(t, prodLog)
 
-	// New complete logger
-	appLogger, err := logger.New(logger.Config{
-		Level:       "warn",
-		Environment: "development",
-	}, "test-service")
-	require.NoError(t, err)
-	assert.NotNil(t, appLogger)
-
-	// Nop logger
+	// Nop logger implements Logger
 	nop := logger.NewNop()
 	assert.NotNil(t, nop)
+	require.NoError(t, nop.Sync())
 
 	// Unknown level falls back to info with error
-	_, err = logger.NewZap(logger.Config{
+	_, err = logger.New(logger.Config{
 		Level: "unknown_level",
 	})
 	assert.Error(t, err)
+}
+
+func TestPackageLevelLogging_AndDefaultLogger(t *testing.T) {
+	core, recorded := observer.New(zapcore.DebugLevel)
+	baseZap := zap.New(core)
+	appLogger := logger.NewZapLogger(baseZap, "pkg-service", "test")
+
+	// Set package-level default
+	logger.SetDefault(appLogger)
+	assert.Equal(t, appLogger, logger.L())
+
+	ctx := context.Background()
+
+	logger.Debug(ctx, "pkg debug")
+	logger.Info(ctx, "pkg info")
+	logger.Warn(ctx, "pkg warn")
+	logger.Error(ctx, "pkg error", errors.New("err"))
+
+	logger.With("key", "val").Info(ctx, "fluent pkg info")
+	logger.WithFields(map[string]any{"f1": 1}).Info(ctx, "fluent pkg fields")
+	logger.WithData("data_val").Info(ctx, "fluent pkg data")
+	logger.Named("pkg-sub").Info(ctx, "fluent pkg named")
+	require.NoError(t, logger.Sync())
+
+	entries := recorded.All()
+	assert.Len(t, entries, 8)
+	assert.Equal(t, "pkg debug", entries[0].Message)
+	assert.Equal(t, "pkg info", entries[1].Message)
+	assert.Equal(t, "pkg warn", entries[2].Message)
+	assert.Equal(t, "pkg error", entries[3].Message)
+}
+
+func TestContextLogger_WithAndFromContext(t *testing.T) {
+	core, recorded := observer.New(zapcore.InfoLevel)
+	baseZap := zap.New(core)
+	defaultLog := logger.NewZapLogger(baseZap, "default-svc", "test")
+	logger.SetDefault(defaultLog)
+
+	// Fallback to default when not set in context
+	emptyCtx := context.Background()
+	assert.NotNil(t, logger.FromContext(emptyCtx))
+
+	// Scoped logger attached to context
+	scopedLog := defaultLog.With("tenant", "tenant-abc")
+	ctx := logger.WithContext(emptyCtx, scopedLog)
+
+	logger.FromContext(ctx).Info(ctx, "scoped tenant message")
+
+	entries := recorded.All()
+	require.Len(t, entries, 1)
+	fields := entries[0].ContextMap()
+	assert.Equal(t, "tenant-abc", fields["tenant"])
 }

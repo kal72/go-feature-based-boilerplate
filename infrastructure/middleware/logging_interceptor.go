@@ -9,8 +9,6 @@ import (
 	"go-feature-based-boilerplate/pkg/contextutil"
 	"go-feature-based-boilerplate/pkg/logger"
 
-	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -23,9 +21,9 @@ import (
 // LoggingInterceptor is a gRPC unary server interceptor that logs each request
 // in structured JSON format with OpenTelemetry semantic conventions, execution latency,
 // status codes, peer IP, request ID, sanitized request payload, and response payload (on error).
-// It also enriches the context with RPCMetadata so downstream handlers and usecases
+// It enriches the context with RPCMetadata so downstream handlers and usecases
 // automatically inherit transport context.
-func LoggingInterceptor(zapLogger *zap.Logger) grpc.UnaryServerInterceptor {
+func LoggingInterceptor(log logger.Logger) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
 		req any,
@@ -78,71 +76,40 @@ func LoggingInterceptor(zapLogger *zap.Logger) grpc.UnaryServerInterceptor {
 		st, _ := status.FromError(err)
 		code := st.Code()
 
-		fields := []zap.Field{
-			zap.String("rpc.system", "grpc"),
-			zap.String("rpc.service", serviceName),
-			zap.String("rpc.method", methodName),
-			zap.Int("rpc.grpc.status_code", int(code)),
-			zap.String("status", code.String()),
-			zap.Float64("duration_ms", durationMs),
-		}
+		// Build entry logger with execution-specific metrics
+		reqLog := log.
+			With("rpc.grpc.status_code", int(code)).
+			With("status", code.String()).
+			With("duration_ms", durationMs)
 
-		if clientIP != "" {
-			fields = append(fields, zap.String("client_ip", clientIP))
-		}
-		if userAgent != "" {
-			fields = append(fields, zap.String("user_agent", userAgent))
-		}
-		if requestID != "" {
-			fields = append(fields, zap.String("request_id", requestID))
-		}
-
-		// 4. OpenTelemetry Trace & Span ID
-		spanCtx := trace.SpanFromContext(ctx).SpanContext()
-		if spanCtx.IsValid() {
-			fields = append(fields,
-				zap.String("trace_id", spanCtx.TraceID().String()),
-				zap.String("span_id", spanCtx.SpanID().String()),
-			)
-		}
-
-		// 5. Authenticated Identity (if set during interceptor chain)
-		if userID, ok := contextutil.GetUserID(ctx); ok {
-			fields = append(fields, zap.Uint("user_id", userID))
-		}
-		if role, ok := contextutil.GetRole(ctx); ok && role != "" {
-			fields = append(fields, zap.String("role", role))
-		}
-
-		// 6. Request Payload with sensitive data masked (always logged)
+		// Request Payload with sensitive data masked (always logged)
 		if sanitizedReq := sanitizePayload(req); sanitizedReq != nil {
-			fields = append(fields,
-				zap.Any("request", sanitizedReq),
-				zap.Any("rpc.request.payload", sanitizedReq), // backward compatibility
-			)
+			reqLog = reqLog.
+				With("request", sanitizedReq).
+				With("rpc.request.payload", sanitizedReq) // backward compatibility
 		}
 
-		// 7. Response Payload with sensitive data masked (logged ONLY on error)
+		// Response Payload with sensitive data masked (logged ONLY on error)
 		if code != codes.OK {
 			if sanitizedResp := sanitizePayload(resp); sanitizedResp != nil {
-				fields = append(fields, zap.Any("response", sanitizedResp))
+				reqLog = reqLog.With("response", sanitizedResp)
 			}
 		}
 
-		// 8. Error Details if request failed
+		// Error Details if request failed
 		if err != nil {
-			fields = append(fields, zap.String("error.message", st.Message()))
+			reqLog = reqLog.With("error.message", st.Message())
 		}
 
-		// 9. Dynamic Log Level based on gRPC status code
+		// Dynamic Log Level based on gRPC status code
 		switch code {
 		case codes.OK:
-			zapLogger.Info("gRPC request completed", fields...)
+			reqLog.Info(ctx, "gRPC request completed")
 		case codes.InvalidArgument, codes.NotFound, codes.AlreadyExists,
 			codes.PermissionDenied, codes.Unauthenticated, codes.FailedPrecondition:
-			zapLogger.Warn("gRPC client error", fields...)
+			reqLog.Warn(ctx, "gRPC client error")
 		default:
-			zapLogger.Error("gRPC server error", fields...)
+			reqLog.Error(ctx, "gRPC server error")
 		}
 
 		return resp, err

@@ -140,6 +140,14 @@ deps-upgrade: ## Upgrade all direct dependencies to latest minor/patch
 new-feature: ## Scaffold a new feature module (usage: make new-feature name=product)
 	@./scripts/new-feature.sh "$(name)"
 
+.PHONY: rename
+rename: ## Rename Go module and imports across project (usage: make rename module=github.com/org/repo)
+ifeq ($(OS),Windows_NT)
+	@scripts\rename-module.bat "$(module)"
+else
+	@./scripts/rename-module.sh "$(module)"
+endif
+
 ## ─── Clean ─────────────────────────────────────────────────────────────────────
 .PHONY: clean
 clean: ## Remove build artefacts

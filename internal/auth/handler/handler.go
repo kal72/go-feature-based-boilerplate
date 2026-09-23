@@ -6,6 +6,9 @@ import (
 	pb "go-feature-based-boilerplate/gen/pb/auth"
 	"go-feature-based-boilerplate/internal/auth/dto"
 	"go-feature-based-boilerplate/internal/auth/usecase"
+
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/grpc"
 )
 
 // Handler implements the gRPC AuthService server interface.
@@ -66,4 +69,14 @@ func (h *Handler) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.Logout
 		return nil, err
 	}
 	return &pb.LogoutResponse{}, nil
+}
+
+// RegisterGRPC registers the auth service onto the provided gRPC server.
+func (h *Handler) RegisterGRPC(server *grpc.Server) {
+	pb.RegisterAuthServiceServer(server, h)
+}
+
+// RegisterGateway registers the auth service HTTP endpoints onto the gRPC-Gateway mux.
+func (h *Handler) RegisterGateway(ctx context.Context, mux *runtime.ServeMux, grpcAddr string, opts []grpc.DialOption) error {
+	return pb.RegisterAuthServiceHandlerFromEndpoint(ctx, mux, grpcAddr, opts)
 }

@@ -8,6 +8,8 @@ import (
 	"go-feature-based-boilerplate/internal/user/usecase"
 	"go-feature-based-boilerplate/pkg/contextutil"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -78,6 +80,16 @@ func (h *Handler) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) (*p
 		return nil, err
 	}
 	return &pb.DeleteUserResponse{}, nil
+}
+
+// RegisterGRPC registers the user service onto the provided gRPC server.
+func (h *Handler) RegisterGRPC(server *grpc.Server) {
+	pb.RegisterUserServiceServer(server, h)
+}
+
+// RegisterGateway registers the user service HTTP endpoints onto the gRPC-Gateway mux.
+func (h *Handler) RegisterGateway(ctx context.Context, mux *runtime.ServeMux, grpcAddr string, opts []grpc.DialOption) error {
+	return pb.RegisterUserServiceHandlerFromEndpoint(ctx, mux, grpcAddr, opts)
 }
 
 // toProto converts a UserResponse DTO to the generated protobuf message.

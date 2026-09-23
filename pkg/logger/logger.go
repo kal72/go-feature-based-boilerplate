@@ -2,14 +2,22 @@ package logger
 
 import (
 	"context"
+	"sync/atomic"
 )
+
+// Config holds logger initialisation options for building a Logger.
+type Config struct {
+	Level       string // debug | info | warn | error
+	Environment string // development | production
+	ServiceName string // logical name of the microservice
+}
 
 // Logger defines an enterprise-grade structured JSON logger tailored for microservices.
 // To enforce strict observability standards across the distributed architecture,
 // log methods do not accept ad-hoc field variadics (e.g., fields ...Field).
 // Instead, correlation identifiers (trace_id, span_id, request_id, user_id, rpc metadata)
-// are automatically extracted from the context.Context.
-// Optional business payloads can be appended using the fluent With() or WithData() methods.
+// are automatically extracted from context.Context.
+// Optional business payloads can be appended using the fluent With(), WithFields(), or WithData() methods.
 type Logger interface {
 	// Debug writes a debug-level log message in JSON format, enriched with context metadata.
 	Debug(ctx context.Context, msg string)
@@ -30,8 +38,135 @@ type Logger interface {
 	// With creates a child Logger enriched with an additional key-value pair.
 	With(key string, value any) Logger
 
+	// WithFields creates a child Logger enriched with multiple key-value pairs.
+	WithFields(fields map[string]any) Logger
+
 	// WithData creates a child Logger enriched with structured data stored under the "data" key.
 	WithData(data any) Logger
+
+	// Named creates a child Logger with a sub-logger namespace.
+	Named(name string) Logger
+
+	// Sync flushes any buffered log entries to underlying storage/streams.
+	Sync() error
+}
+
+var defaultLogger atomic.Value
+
+func init() {
+	defaultLogger.Store(NewNop())
+}
+
+// SetDefault replaces the package-level default logger.
+func SetDefault(l Logger) {
+	if l != nil {
+		defaultLogger.Store(l)
+	}
+}
+
+// L returns the package-level default logger.
+func L() Logger {
+	if l, ok := defaultLogger.Load().(Logger); ok && l != nil {
+		return l
+	}
+	return NewNop()
+}
+
+// Debug writes a debug-level log message using the default logger.
+func Debug(ctx context.Context, msg string) {
+	if zl, ok := L().(internalCallerLogger); ok {
+		zl.logCaller(ctx, 1, "debug", msg)
+		return
+	}
+	L().Debug(ctx, msg)
+}
+
+// Info writes an info-level log message using the default logger.
+func Info(ctx context.Context, msg string) {
+	if zl, ok := L().(internalCallerLogger); ok {
+		zl.logCaller(ctx, 1, "info", msg)
+		return
+	}
+	L().Info(ctx, msg)
+}
+
+// Warn writes a warning-level log message using the default logger.
+func Warn(ctx context.Context, msg string) {
+	if zl, ok := L().(internalCallerLogger); ok {
+		zl.logCaller(ctx, 1, "warn", msg)
+		return
+	}
+	L().Warn(ctx, msg)
+}
+
+// Error writes an error-level log message using the default logger.
+func Error(ctx context.Context, msg string, err ...error) {
+	if zl, ok := L().(internalCallerLogger); ok {
+		zl.logCaller(ctx, 1, "error", msg, err...)
+		return
+	}
+	L().Error(ctx, msg, err...)
+}
+
+// Fatal writes a fatal-level log message using the default logger and terminates via os.Exit(1).
+func Fatal(ctx context.Context, msg string, err ...error) {
+	if zl, ok := L().(internalCallerLogger); ok {
+		zl.logCaller(ctx, 1, "fatal", msg, err...)
+		return
+	}
+	L().Fatal(ctx, msg, err...)
+}
+
+// With creates a child Logger enriched with an additional key-value pair from default logger.
+func With(key string, value any) Logger {
+	return L().With(key, value)
+}
+
+// WithFields creates a child Logger enriched with multiple key-value pairs from default logger.
+func WithFields(fields map[string]any) Logger {
+	return L().WithFields(fields)
+}
+
+// WithData creates a child Logger enriched with structured data stored under the "data" key.
+func WithData(data any) Logger {
+	return L().WithData(data)
+}
+
+// Named creates a child Logger with a sub-logger namespace using the default logger.
+func Named(name string) Logger {
+	return L().Named(name)
+}
+
+// Sync flushes any buffered log entries of the default logger.
+func Sync() error {
+	return L().Sync()
+}
+
+type loggerCtxKey struct{}
+
+// WithContext returns a new context with the provided Logger attached.
+func WithContext(ctx context.Context, l Logger) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, loggerCtxKey{}, l)
+}
+
+// FromContext extracts the Logger from the context. If no Logger is present,
+// it returns the package-level default logger (L()).
+func FromContext(ctx context.Context) Logger {
+	if ctx != nil {
+		if l, ok := ctx.Value(loggerCtxKey{}).(Logger); ok && l != nil {
+			return l
+		}
+	}
+	return L()
+}
+
+// internalCallerLogger is an unexported interface implemented by concrete wrappers
+// allowing caller depth correction when invoking package-level log helpers.
+type internalCallerLogger interface {
+	logCaller(ctx context.Context, extraSkip int, level string, msg string, err ...error)
 }
 
 // RPCMetadata stores RPC transport-level metadata injected by network interceptors (e.g. gRPC).

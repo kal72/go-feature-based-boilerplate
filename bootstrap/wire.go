@@ -17,6 +17,7 @@ import (
 
 // serverSet wires bootstrap servers and application lifecycle container.
 var serverSet = wire.NewSet(
+	ProvideServices,
 	NewGRPCServer,
 	NewHTTPGateway,
 	NewApp,

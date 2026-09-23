@@ -11,9 +11,6 @@ import (
 	"time"
 
 	"go-feature-based-boilerplate/gen/openapi"
-	authpb "go-feature-based-boilerplate/gen/pb/auth"
-	healthpb "go-feature-based-boilerplate/gen/pb/health"
-	userpb "go-feature-based-boilerplate/gen/pb/user"
 	"go-feature-based-boilerplate/infrastructure/config"
 	"go-feature-based-boilerplate/infrastructure/swagger"
 
@@ -199,7 +196,7 @@ func responseEnvelopeMiddleware(next http.Handler) http.Handler {
 //
 // It registers all gRPC services via grpc-gateway so that REST clients can
 // reach them without a separate HTTP handler. Swagger UI is served at /swagger/.
-func NewHTTPGateway(ctx context.Context, cfg *config.Config) (*http.Server, error) {
+func NewHTTPGateway(ctx context.Context, cfg *config.Config, services *Services) (*http.Server, error) {
 	grpcAddr := fmt.Sprintf("localhost:%d", cfg.Server.GRPCPort)
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
@@ -217,15 +214,9 @@ func NewHTTPGateway(ctx context.Context, cfg *config.Config) (*http.Server, erro
 		}),
 	)
 
-	// ── Register gRPC-gateway handlers ───────────────────────────────────────
-	if err := healthpb.RegisterHealthServiceHandlerFromEndpoint(ctx, gwMux, grpcAddr, opts); err != nil {
-		return nil, fmt.Errorf("gateway: register health service: %w", err)
-	}
-	if err := authpb.RegisterAuthServiceHandlerFromEndpoint(ctx, gwMux, grpcAddr, opts); err != nil {
-		return nil, fmt.Errorf("gateway: register auth service: %w", err)
-	}
-	if err := userpb.RegisterUserServiceHandlerFromEndpoint(ctx, gwMux, grpcAddr, opts); err != nil {
-		return nil, fmt.Errorf("gateway: register user service: %w", err)
+	// ── Register gRPC-gateway handlers via unified Services collection ────────
+	if err := services.RegisterGateway(ctx, gwMux, grpcAddr, opts); err != nil {
+		return nil, fmt.Errorf("gateway: register services: %w", err)
 	}
 
 	mux := http.NewServeMux()
