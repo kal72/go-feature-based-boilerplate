@@ -1,0 +1,69 @@
+# GoStarter contract v1: optional features and pkg extensions only.
+# Architecture, infrastructure, core files, and integration conventions are
+# owned by GoStarter's versioned template profile, not this catalog.
+# Core packages (including jwtutil, routine, and transaction) are not listed.
+# `requires` references extension IDs in this file, never core package IDs.
+schema_version: 1
+
+extensions:
+  - id: user
+    kind: feature
+    title: User Management
+    description: Create, find, update, and delete user profiles.
+    path: internal/user
+    requires: [cryptoutil, validator]
+
+  - id: auth
+    kind: feature
+    title: Authentication
+    description: Login, logout, and refresh token rotation for users.
+    path: internal/auth
+    requires: [user, cryptoutil, validator]
+
+  - id: cryptoutil
+    kind: pkg
+    title: Cryptographic Utilities
+    description: Bcrypt password hashing, random tokens, and SHA-256 helpers.
+    path: pkg/cryptoutil
+
+  - id: httpclient
+    kind: pkg
+    title: HTTP Client
+    description: Outbound HTTP requests with connection pooling, retries, and tracing.
+    path: pkg/httpclient
+
+  - id: idempotency
+    kind: pkg
+    title: Idempotency
+    description: Prevent duplicate execution with in-memory or Redis-backed storage.
+    path: pkg/idempotency
+
+  - id: pagination
+    kind: pkg
+    title: Pagination
+    description: Offset and cursor pagination with sorting helpers for GORM.
+    path: pkg/pagination
+
+  - id: pointer
+    kind: pkg
+    title: Pointer Helpers
+    description: Create pointers and read values with a fallback default.
+    path: pkg/pointer
+
+  - id: stringutil
+    kind: pkg
+    title: String Utilities
+    description: Check empty strings, truncate text, and convert names to snake case.
+    path: pkg/stringutil
+
+  - id: timeutil
+    kind: pkg
+    title: Time Utilities
+    description: UTC timestamps, day boundaries, and RFC 3339 conversion helpers.
+    path: pkg/timeutil
+
+  - id: validator
+    kind: pkg
+    title: Struct Validation
+    description: Shared struct validation using go-playground validation tags.
+    path: pkg/validator
